@@ -30,12 +30,16 @@ Windows doesn't let you minimize windows to the system tray. The [original Traym
 
 Traymond runs silently with no tray icon of its own — only icons for minimized windows appear.
 
-## Building
+## Download
+
+Grab `Traymond.exe` from the [latest release](https://github.com/vetteforspam-dot/Traymond/releases/latest). No installer needed — just run it.
+
+Place it in a writable directory (it creates `traymond.dat` for crash recovery). To run at startup, add a shortcut to `shell:startup` with the working directory set to the exe's folder.
+
+## Building from source
 
 Requires Visual Studio (MSVC). Open a **Developer Command Prompt** and run:
 
 ```
 nmake
 ```
-
-Place `Traymond.exe` in a writable directory (it creates `traymond.dat` for crash recovery). To run at startup, add a shortcut to `shell:startup` with the working directory set to the exe's folder.
