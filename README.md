@@ -11,6 +11,7 @@ Windows doesn't let you minimize windows to the system tray. The [original Traym
 - **Chromium and Electron apps** (Chrome, Edge, Brave, Helium, VS Code, Discord, Slack) use custom title bars that don't respond to standard Windows hit-testing. There was no way to right-click their minimize button.
 - **Tray icons could be blank.** Chromium windows return icon handles that look valid but render as invisible squares in the tray — your window disappears with no way to get it back.
 - **Restoring required a double-click**, which felt sluggish for something you do constantly.
+- **Traymond added its own icon to the tray**, wasting space for no reason — you never need to interact with Traymond itself.
 
 ## How this version works
 
