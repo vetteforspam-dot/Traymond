@@ -34,8 +34,10 @@ Traymond runs silently with no tray icon of its own — only icons for minimized
 ## Setup
 
 1. Download `Traymond.exe` from the [latest release](https://github.com/vetteforspam-dot/Traymond/releases/latest) and put it in a folder (e.g. `C:\Tools\Traymond\`).
-2. Press **Win+R**, type `shell:startup`, and create a shortcut to `Traymond.exe` there. Set the shortcut's **Start in** field to the folder from step 1.
-3. Run it. That's it — right-click minimize works on every window from now on. You never have to think about it again.
+2. Double-click it to start. Right-click minimize works immediately.
+3. To start automatically on login, press **Win+R**, type `shell:startup`, and drag `Traymond.exe` into the folder that opens.
+
+That's it. You never have to think about it again.
 
 ## Building from source
 
