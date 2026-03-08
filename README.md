@@ -31,11 +31,11 @@ Windows doesn't let you minimize windows to the system tray. The [original Traym
 
 Traymond runs silently with no tray icon of its own — only icons for minimized windows appear.
 
-## Download
+## Setup
 
-Grab `Traymond.exe` from the [latest release](https://github.com/vetteforspam-dot/Traymond/releases/latest). No installer needed — just run it.
-
-Place it in a writable directory (it creates `traymond.dat` for crash recovery). To run at startup, add a shortcut to `shell:startup` with the working directory set to the exe's folder.
+1. Download `Traymond.exe` from the [latest release](https://github.com/vetteforspam-dot/Traymond/releases/latest) and put it in a folder (e.g. `C:\Tools\Traymond\`).
+2. Press **Win+R**, type `shell:startup`, and create a shortcut to `Traymond.exe` there. Set the shortcut's **Start in** field to the folder from step 1.
+3. Run it. That's it — right-click minimize works on every window from now on. You never have to think about it again.
 
 ## Building from source
 
