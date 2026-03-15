@@ -37,6 +37,9 @@ HANDLE saveFile;
 HWND g_mainWindow = NULL;
 HHOOK g_mouseHook = NULL;
 
+// Registered message ID for Explorer restart notification
+UINT WM_TASKBARCREATED = 0;
+
 // Saves our hidden windows so they can be restored in case
 // of crashing.
 void save(const TRCONTEXT *context) {
@@ -207,6 +210,70 @@ void showAllWindows(TRCONTEXT *context) {
   context->iconIndex = 0;
 }
 
+// Re-adds tray icons for all currently hidden windows.
+// Called when Explorer restarts (TaskbarCreated) — the old icons are gone
+// but the windows are still hidden, so we re-register them.
+// Re-extracts icons fresh because stored HICON handles from
+// GetClassLongPtr/SendMessage(WM_GETICON) go stale after Explorer restarts.
+void recreateIcons(TRCONTEXT *context) {
+  for (int i = 0; i < context->iconIndex; i++) {
+    if (!context->icons[i].window) continue;
+    HWND hwnd = context->icons[i].window;
+    // Window may have been closed while we weren't looking
+    if (!IsWindow(hwnd)) {
+      context->icons[i] = {};
+      continue;
+    }
+    // Re-extract icon fresh from the process executable
+    HICON freshIcon = NULL;
+    {
+      DWORD pid = 0;
+      GetWindowThreadProcessId(hwnd, &pid);
+      if (pid) {
+        HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (proc) {
+          char exePath[MAX_PATH];
+          DWORD pathLen = MAX_PATH;
+          if (QueryFullProcessImageName(proc, 0, exePath, &pathLen)) {
+            freshIcon = ExtractIcon(GetModuleHandle(NULL), exePath, 0);
+            if (freshIcon == (HICON)1) freshIcon = NULL;
+          }
+          CloseHandle(proc);
+        }
+      }
+    }
+    // Fall back to window icon queries if exe extraction failed
+    if (!freshIcon) {
+      ULONG_PTR ic = GetClassLongPtr(hwnd, GCLP_HICONSM);
+      if (!ic) ic = SendMessage(hwnd, WM_GETICON, 2, NULL);
+      if (!ic) ic = SendMessage(hwnd, WM_GETICON, 0, NULL);
+      if (!ic) ic = SendMessage(hwnd, WM_GETICON, 1, NULL);
+      if (ic) freshIcon = (HICON)ic;
+    }
+    if (freshIcon) {
+      context->icons[i].icon.hIcon = freshIcon;
+    }
+    // Update tooltip in case window title changed
+    GetWindowText(hwnd, context->icons[i].icon.szTip, 128);
+    Shell_NotifyIcon(NIM_DELETE, &context->icons[i].icon);
+    Shell_NotifyIcon(NIM_ADD, &context->icons[i].icon);
+    Shell_NotifyIcon(NIM_SETVERSION, &context->icons[i].icon);
+  }
+  // Compact out any dead entries
+  std::vector<HIDDEN_WINDOW> temp(context->iconIndex);
+  int count = 0;
+  for (int i = 0; i < context->iconIndex; i++) {
+    if (context->icons[i].window) {
+      temp[count++] = context->icons[i];
+    }
+  }
+  if (count != context->iconIndex) {
+    memcpy_s(context->icons, sizeof(context->icons), &temp.front(), sizeof(HIDDEN_WINDOW) * context->iconIndex);
+    context->iconIndex = count;
+    save(context);
+  }
+}
+
 void exitApp() {
   PostQuitMessage(0);
 }
@@ -350,6 +417,14 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
   TRCONTEXT* context = reinterpret_cast<TRCONTEXT*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+
+  // Handle Explorer restart — re-add all tray icons that were destroyed.
+  // WM_TASKBARCREATED is a registered message (runtime value), can't use switch.
+  if (WM_TASKBARCREATED && uMsg == WM_TASKBARCREATED && context) {
+    recreateIcons(context);
+    return 0;
+  }
+
   switch (uMsg)
   {
   case WM_ICON:
@@ -406,7 +481,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     return 1;
   }
 
-  context.mainWindow = CreateWindow(CLASS_NAME, NULL, NULL, 0, 0, 0, 0, HWND_MESSAGE, NULL, hInstance, NULL);
+  // NOT HWND_MESSAGE â€” message-only windows are excluded from HWND_BROADCAST,
+  // so they never receive TaskbarCreated. Use a regular invisible window instead.
+  context.mainWindow = CreateWindow(CLASS_NAME, NULL, 0, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
 
   if (!context.mainWindow) {
     return 1;
@@ -433,6 +510,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   if (!g_mouseHook) {
     MessageBox(NULL, "Warning: Could not install mouse hook.\nRight-click minimize will not work.", "Traymond", MB_OK | MB_ICONWARNING);
   }
+
+  // Register for Explorer restart notification so we can re-add tray icons
+  WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+  // Allow TaskbarCreated through UIPI message filter (Explorer may
+  // restart at a different integrity level on some Windows editions).
+  ChangeWindowMessageFilter(WM_TASKBARCREATED, MSGFLT_ADD);
 
   // No tray icon for Traymond itself — only minimized app icons appear
   startup(&context);
